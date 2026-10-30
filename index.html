@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Jony Pharmacy</title>
+  
+  <!-- إعدادات تطبيق الموبايل (PWA) للأندرويد والآيفون -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Jony Pharmacy">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3063/3063176.png">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Inter:wght@600;700;800&display=swap');
+    body { font-family: 'Cairo', sans-serif; -webkit-tap-highlight-color: transparent; }
+    .brand-en { font-family: 'Inter', sans-serif; letter-spacing: -0.5px; }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 pb-20 select-none">
+
+  <!-- Header -->
+  <header class="bg-gradient-to-r from-teal-800 via-teal-700 to-emerald-700 text-white shadow-lg sticky top-0 z-40">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-3 space-x-reverse">
+        <div class="w-11 h-11 bg-white/10 backdrop-blur rounded-xl border border-white/20 flex items-center justify-center text-teal-200 text-xl shadow-inner">
+          <i class="fa-solid fa-notes-medical"></i>
+        </div>
+        <div>
+          <h1 class="text-2xl font-black brand-en tracking-wide text-white">
+            Jony Pharmacy
+          </h1>
+          <p class="text-xs text-teal-100 font-medium">الخزينة الموحدة والمزامنة اللحظية</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="loadLiveTransactionsFromSheet()" title="تحديث وتزامن الأرصدة" class="bg-white/15 hover:bg-white/25 active:scale-95 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 border border-white/20 shadow">
+          <i class="fa-solid fa-rotate" id="refreshIcon"></i>
+          <span>تحديث</span>
+        </button>
+        <button onclick="toggleConfigModal()" title="إعداد رابط Google Sheets" class="bg-white/15 hover:bg-white/25 active:scale-95 text-white p-2 rounded-lg text-xs font-bold transition border border-white/20">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+        </button>
+        <button onclick="openCapitalModal()" class="bg-teal-500 hover:bg-teal-400 active:scale-95 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow">
+          <i class="fa-solid fa-vault"></i>
+          <span>رأس المال</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-6 space-y-6">
+
+    <!-- كروت الأرصدة المشتركة -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+        <span class="text-xs font-bold text-slate-400 block mb-1">الرصيد المشترك بالدرج</span>
+        <div class="text-xl sm:text-2xl font-extrabold text-teal-700 font-mono" id="currentBalance">0.00</div>
+        <span class="text-[11px] text-slate-500">ج.م (بعد كل الحركات)</span>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+        <span class="text-xs font-bold text-slate-400 block mb-1">إجمالي الوارد</span>
+        <div class="text-lg sm:text-xl font-bold text-emerald-600 font-mono" id="totalIncome">+0.00</div>
+        <span class="text-[11px] text-slate-500">مبيعات وإيداعات</span>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+        <span class="text-xs font-bold text-slate-400 block mb-1">إجمالي المصروفات</span>
+        <div class="text-lg sm:text-xl font-bold text-rose-600 font-mono" id="totalExpenses">-0.00</div>
+        <span class="text-[11px] text-slate-500">فواتير ومصاريف</span>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+        <span class="text-xs font-bold text-slate-400 block mb-1">رأس المال الأساسي</span>
+        <div class="text-lg sm:text-xl font-bold text-slate-700 font-mono" id="baseCapital">0.00</div>
+        <span class="text-[11px] text-slate-500">موحد لكل الشركاء</span>
+      </div>
+    </div>
+
+    <!-- نموذج تسجيل الحركة -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+      <h2 class="text-base font-bold text-slate-800 mb-4 flex items-center justify-between">
+        <span class="flex items-center gap-2">
+          <i class="fa-solid fa-plus-circle text-teal-600"></i>
+          تسجيل حركة مالية جديدة
+        </span>
+        <span id="syncBadge" class="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">جاري فحص الاتصال...</span>
+      </h2>
+
+      <form id="transactionForm" onsubmit="handleTransactionSubmit(event)" class="space-y-4">
+        
+        <div class="grid grid-cols-2 gap-3 bg-slate-100 p-1 rounded-xl">
+          <label class="flex items-center justify-center gap-2 py-2 rounded-lg cursor-pointer font-bold text-sm transition-all" id="lblIncome">
+            <input type="radio" name="txType" value="income" onchange="updateTypeUI()" class="hidden">
+            <i class="fa-solid fa-arrow-down-left"></i> وارد / مبيعات (+)
+          </label>
+          <label class="flex items-center justify-center gap-2 py-2 rounded-lg cursor-pointer font-bold text-sm transition-all" id="lblExpense">
+            <input type="radio" name="txType" value="expense" checked onchange="updateTypeUI()" class="hidden">
+            <i class="fa-solid fa-arrow-up-right"></i> مصروف / فواتير (-)
+          </label>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">المبلغ (ج.م)</label>
+          <div class="relative">
+            <input type="number" step="0.5" id="amount" required placeholder="0.00" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-2xl font-black text-slate-800 font-mono focus:ring-2 focus:ring-teal-500 focus:outline-none">
+            <span class="absolute left-4 top-3.5 text-slate-400 font-bold text-sm">ج.م</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">تصنيف الحركة للصيدلية</label>
+          <select id="category" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">طريقة الدفع / المعاملة</label>
+          <div class="grid grid-cols-3 gap-2">
+            <label class="payment-btn flex items-center justify-center gap-1.5 py-2 px-3 border rounded-xl text-xs font-bold cursor-pointer transition border-teal-600 bg-teal-50 text-teal-700">
+              <input type="radio" name="paymentMethod" value="كاش" checked onchange="updatePaymentUI()" class="hidden">
+              <i class="fa-solid fa-money-bill-wave"></i> كاش
+            </label>
+            <label class="payment-btn flex items-center justify-center gap-1.5 py-2 px-3 border rounded-xl text-xs font-bold cursor-pointer transition border-slate-200 text-slate-600">
+              <input type="radio" name="paymentMethod" value="محفظة" onchange="updatePaymentUI()" class="hidden">
+              <i class="fa-solid fa-mobile-screen"></i> محفظة
+            </label>
+            <label class="payment-btn flex items-center justify-center gap-1.5 py-2 px-3 border rounded-xl text-xs font-bold cursor-pointer transition border-slate-200 text-slate-600">
+              <input type="radio" name="paymentMethod" value="فيزا" onchange="updatePaymentUI()" class="hidden">
+              <i class="fa-regular fa-credit-card"></i> فيزا
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">البيان / اسم المورد / الملاحظات</label>
+          <input type="text" id="notes" placeholder="مثال: فاتورة ابن سينا، مشتريات نواقص، إيجار..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">التاريخ والوقت</label>
+          <input type="datetime-local" id="txDate" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+        </div>
+
+        <div class="border-2 border-dashed border-slate-300 rounded-xl p-3 bg-slate-50/70 hover:bg-slate-50 transition">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <i class="fa-solid fa-camera text-teal-600 text-base"></i>
+              تصوير / إرفاق فاتورة (اختياري)
+            </span>
+            <label class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer transition flex items-center gap-1 shadow-sm">
+              <i class="fa-solid fa-camera-retro"></i>
+              <span>التقاط بالكاميرا</span>
+              <input type="file" id="invoiceImage" accept="image/*" capture="environment" onchange="previewInvoice(event)" class="hidden">
+            </label>
+          </div>
+
+          <div id="imagePreviewBox" class="hidden mt-3 pt-3 border-t border-slate-200 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <img id="previewImg" src="" class="w-12 h-12 rounded-lg object-cover border border-slate-300 shadow-sm">
+              <div>
+                <span class="text-xs font-bold text-slate-700 block" id="imgName">invoice.jpg</span>
+                <span class="text-[10px] text-emerald-600 font-semibold"><i class="fa-solid fa-check-circle"></i> تم إرفاق الصورة وجاهزة للرفع لشيت الإكسيل</span>
+              </div>
+            </div>
+            <button type="button" onclick="removeImage()" class="text-rose-500 hover:text-rose-700 p-1 text-sm">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" id="submitBtn" class="w-full bg-teal-600 hover:bg-teal-700 active:scale-[0.99] text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-base">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>حفظ وتحديث رصيد الشركاء</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- جدول الحركات -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+          <i class="fa-solid fa-list-check text-teal-600"></i>
+          دفتر اليومية الموحد
+        </h3>
+        <span class="text-xs text-slate-500 font-medium" id="txCount">0 حركة</span>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-right text-xs">
+          <thead class="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+            <tr>
+              <th class="p-3">التاريخ</th>
+              <th class="p-3">النوع</th>
+              <th class="p-3">التصنيف والبيان</th>
+              <th class="p-3">طريقة الدفع</th>
+              <th class="p-3">المبلغ</th>
+              <th class="p-3 text-center">الفاتورة</th>
+              <th class="p-3 text-center">حذف</th>
+            </tr>
+          </thead>
+          <tbody id="txTableBody" class="divide-y divide-slate-100">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- نافذة إعداد الربط -->
+  <div id="configModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+          <i class="fa-solid fa-cloud text-teal-600"></i> رابط الربط مع Google Sheets
+        </h3>
+        <button onclick="toggleConfigModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <p class="text-xs text-slate-600 leading-relaxed">
+        رابط الـ <strong>Web app URL</strong> المربوط حالياً:
+      </p>
+      <input type="url" id="sheetUrlInput" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-left focus:ring-2 focus:ring-teal-500 focus:outline-none">
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="toggleConfigModal()" class="px-3 py-2 rounded-lg text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200">إلغاء</button>
+        <button onclick="saveSheetUrl()" class="px-4 py-2 rounded-lg text-xs font-bold text-white bg-teal-600 hover:bg-teal-700">تحديث الرابط</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // الرابط الرسمي المباشر الخاص بك
+    const DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbywSrC_CWXLawKK9GhwoGCyIeEon0PDrcaUsrt_bcp1w1a6j32MdaeUoQuNQNcr9oCgOA/exec";
+
+    let appData = {
+      baseCapital: 200000,
+      transactions: [],
+      scriptUrl: DEFAULT_SCRIPT_URL
+    };
+
+    let attachedImageBase64 = null;
+    let attachedImageName = "";
+
+    const expenseCategories = [
+      "فواتير شركات التوزيع (ابن سينا، المتحدة، فارما)",
+      "مشتريات نواقص ومخازن خاصة",
+      "إيجار الصيدلية",
+      "مرتبات ومكافآت الشيفتات",
+      "كهرباء ومياه ومرافق",
+      "سحب شخصي / أرباح شركاء",
+      "مصاريف نثريات ونظافة",
+      "صيانة وأجهزة"
+    ];
+
+    const incomeCategories = [
+      "مبيعات أدوية وروشتات",
+      "مبيعات مستحضرات وتجميل (OTC)",
+      "مستلزمات وأجهزة طبية",
+      "إيداع نقدي لزيادة رأس المال",
+      "إيرادات أخرى"
+    ];
+
+    function init() {
+      const now = new Date();
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      document.getElementById('txDate').value = now.toISOString().slice(0, 16);
+
+      updateTypeUI();
+      checkSyncStatus();
+      loadLiveTransactionsFromSheet();
+    }
+
+    function checkSyncStatus() {
+      const badge = document.getElementById('syncBadge');
+      if (appData.scriptUrl) {
+        badge.className = "text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700";
+        badge.innerHTML = '<i class="fa-solid fa-cloud-check"></i> متصل بالخزينة الموحدة';
+      } else {
+        badge.className = "text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700";
+        badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> غير مربوط بالشيت';
+      }
+    }
+
+    function updateTypeUI() {
+      const isExpense = document.querySelector('input[name="txType"]:checked').value === 'expense';
+      const lblExpense = document.getElementById('lblExpense');
+      const lblIncome = document.getElementById('lblIncome');
+      const catSelect = document.getElementById('category');
+
+      if (isExpense) {
+        lblExpense.className = "flex items-center justify-center gap-2 py-2 rounded-lg cursor-pointer font-bold text-sm bg-rose-600 text-white shadow";
+        lblIncome.className = "flex items-center justify-center gap-2 py-2 rounded-lg cursor-pointer font-bold text-sm text-slate-600 hover:bg-slate-200";
+        catSelect.innerHTML = expenseCategories.map(c => `<option value="${c}">${c}</option>`).join('');
+      } else {
+        lblIncome.className = "flex items-center justify-center gap-2 py-2 rounded-lg cursor-pointer font-bold text-sm bg-emerald-600 text-white shadow";
+        lblExpense.className = "flex items-center justify-center gap-2 py-2 rounded-lg cursor-pointer font-bold text-sm text-slate-600 hover:bg-slate-200";
+        catSelect.innerHTML = incomeCategories.map(c => `<option value="${c}">${c}</option>`).join('');
+      }
+    }
+
+    function updatePaymentUI() {
+      const selected = document.querySelector('input[name="paymentMethod"]:checked').value;
+      document.querySelectorAll('.payment-btn').forEach(btn => {
+        const val = btn.querySelector('input').value;
+        if (val === selected) {
+          btn.className = "payment-btn flex items-center justify-center gap-1.5 py-2 px-3 border rounded-xl text-xs font-bold cursor-pointer transition border-teal-600 bg-teal-50 text-teal-700";
+        } else {
+          btn.className = "payment-btn flex items-center justify-center gap-1.5 py-2 px-3 border rounded-xl text-xs font-bold cursor-pointer transition border-slate-200 text-slate-600";
+        }
+      });
+    }
+
+    function previewInvoice(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      attachedImageName = file.name;
+      document.getElementById('imgName').innerText = file.name;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        attachedImageBase64 = evt.target.result.split(',')[1];
+        document.getElementById('previewImg').src = evt.target.result;
+        document.getElementById('imagePreviewBox').classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeImage() {
+      attachedImageBase64 = null;
+      attachedImageName = "";
+      document.getElementById('invoiceImage').value = "";
+      document.getElementById('imagePreviewBox').classList.add('hidden');
+    }
+
+    async function loadLiveTransactionsFromSheet() {
+      const syncBadge = document.getElementById('syncBadge');
+      const refIcon = document.getElementById('refreshIcon');
+      if (refIcon) refIcon.classList.add('fa-spin');
+      syncBadge.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري تحديث الأرصدة...';
+      
+      try {
+        const response = await fetch(appData.scriptUrl);
+        const result = await response.json();
+        if (result.status === "success") {
+          if (result.baseCapital !== undefined) {
+            appData.baseCapital = Number(result.baseCapital);
+          }
+          if (result.transactions) {
+            appData.transactions = result.transactions.reverse();
+          }
+          render();
+          syncBadge.className = "text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700";
+          syncBadge.innerHTML = '<i class="fa-solid fa-cloud-check"></i> متطابق ومحدث مع الشركاء';
+        }
+      } catch (err) {
+        syncBadge.className = "text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600";
+        syncBadge.innerHTML = '<i class="fa-solid fa-wifi"></i> غير قادر على الاتصال';
+      } finally {
+        if (refIcon) refIcon.classList.remove('fa-spin');
+      }
+    }
+
+    async function handleTransactionSubmit(e) {
+      e.preventDefault();
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري تسجيل وتحديث الخزينة...';
+
+      const type = document.querySelector('input[name="txType"]:checked').value;
+      const amount = parseFloat(document.getElementById('amount').value);
+      const category = document.getElementById('category').value;
+      const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+      const notes = document.getElementById('notes').value.trim();
+      const date = document.getElementById('txDate').value;
+      const txId = Date.now().toString();
+
+      const payload = {
+        id: txId,
+        date: date.replace('T', ' '),
+        type: type === 'income' ? 'وارد' : 'مصروف',
+        category: category,
+        vendor: notes || "-",
+        amount: amount,
+        paymentMethod: paymentMethod,
+        notes: notes,
+        imageBytes: attachedImageBase64,
+        imageName: attachedImageName ? `${txId}_${attachedImageName}` : null
+      };
+
+      try {
+        await fetch(appData.scriptUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch (err) {
+        console.error("خطأ بالإرسال", err);
+      }
+
+      appData.transactions.unshift(payload);
+      document.getElementById('amount').value = '';
+      document.getElementById('notes').value = '';
+      removeImage();
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> حفظ وتحديث رصيد الشركاء';
+
+      render();
+      setTimeout(loadLiveTransactionsFromSheet, 2000);
+    }
+
+    async function deleteTransaction(id) {
+      if (!confirm('هل تريد حذف هذه الحركة؟ سيتم خصمها/إرجاعها من الرصيد المشترك للجميع.')) return;
+
+      appData.transactions = appData.transactions.filter(t => t.id != id);
+      render();
+
+      try {
+        await fetch(appData.scriptUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: "delete", id: id })
+        });
+        setTimeout(loadLiveTransactionsFromSheet, 1500);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function openCapitalModal() {
+      const newCap = prompt("أدخل قيمة رأس المال الأساسي الموحد للصيدلية (ج.م):", appData.baseCapital);
+      if (newCap !== null && !isNaN(newCap) && newCap.trim() !== "") {
+        const val = parseFloat(newCap);
+        appData.baseCapital = val;
+        render();
+
+        await fetch(appData.scriptUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: "update_capital", amount: val })
+        });
+        alert('تم تعميم رأس المال الجديد على جميع الأجهزة!');
+        loadLiveTransactionsFromSheet();
+      }
+    }
+
+    function render() {
+      let incomeSum = 0;
+      let expenseSum = 0;
+
+      appData.transactions.forEach(t => {
+        if (t.type === 'وارد') incomeSum += Number(t.amount);
+        else expenseSum += Number(t.amount);
+      });
+
+      const currentBal = appData.baseCapital + incomeSum - expenseSum;
+
+      document.getElementById('baseCapital').innerText = appData.baseCapital.toLocaleString('en-US', {minimumFractionDigits: 2});
+      document.getElementById('totalIncome').innerText = '+' + incomeSum.toLocaleString('en-US', {minimumFractionDigits: 2});
+      document.getElementById('totalExpenses').innerText = '-' + expenseSum.toLocaleString('en-US', {minimumFractionDigits: 2});
+      document.getElementById('currentBalance').innerText = currentBal.toLocaleString('en-US', {minimumFractionDigits: 2});
+      document.getElementById('txCount').innerText = `${appData.transactions.length} حركة`;
+
+      const tbody = document.getElementById('txTableBody');
+      if (appData.transactions.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-slate-400">لا توجد حركات مسجلة حتى الآن</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = appData.transactions.map(t => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="p-3 text-slate-500 font-mono text-[11px]">${t.date}</td>
+          <td class="p-3">
+            <span class="px-2 py-0.5 rounded font-bold ${t.type === 'وارد' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">
+              ${t.type}
+            </span>
+          </td>
+          <td class="p-3">
+            <div class="font-bold text-slate-800">${t.category}</div>
+            <div class="text-[11px] text-slate-400">${t.notes || t.vendor || '-'}</div>
+          </td>
+          <td class="p-3 font-semibold text-slate-600">${t.paymentMethod || 'كاش'}</td>
+          <td class="p-3 font-mono font-black ${t.type === 'وارد' ? 'text-emerald-600' : 'text-rose-600'}">
+            ${t.type === 'وارد' ? '+' : '-'}${Number(t.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}
+          </td>
+          <td class="p-3 text-center">
+            ${t.fileUrl ? `
+              <a href="${t.fileUrl}" target="_blank" class="text-teal-600 hover:text-teal-800 bg-teal-50 px-2 py-1 rounded text-xs font-bold inline-flex items-center gap-1">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> عرض
+              </a>
+            ` : (t.imageBytes ? `
+              <button onclick="viewLocalImage('${t.imageBytes}')" class="text-teal-600 hover:text-teal-800 bg-teal-50 px-2 py-1 rounded text-xs font-bold">
+                <i class="fa-solid fa-image"></i> عرض
+              </button>
+            ` : '<span class="text-slate-300">-</span>')}
+          </td>
+          <td class="p-3 text-center">
+            <button onclick="deleteTransaction('${t.id}')" class="text-slate-300 hover:text-rose-500 transition p-1" title="حذف السجل">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function viewLocalImage(base64) {
+      const win = window.open("");
+      win.document.write(`<img src="data:image/jpeg;base64,${base64}" style="max-width:100%;height:auto;margin:auto;display:block;"/>`);
+    }
+
+    function toggleConfigModal() {
+      const m = document.getElementById('configModal');
+      m.classList.toggle('hidden');
+      document.getElementById('sheetUrlInput').value = appData.scriptUrl;
+    }
+
+    function saveSheetUrl() {
+      const val = document.getElementById('sheetUrlInput').value.trim();
+      if (val) {
+        appData.scriptUrl = val;
+        toggleConfigModal();
+        checkSyncStatus();
+        loadLiveTransactionsFromSheet();
+        alert('تم تحديث الرابط بنجاح!');
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
