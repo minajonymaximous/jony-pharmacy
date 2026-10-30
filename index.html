@@ -148,25 +148,35 @@
           <input type="datetime-local" id="txDate" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-700 focus:ring-2 focus:ring-teal-500 focus:outline-none">
         </div>
 
-        <!-- اختيار / تصوير الفاتورة (بدون فرض الكاميرا فقط) -->
+        <!-- خياري الكاميرا والمعرض معاً -->
         <div class="border-2 border-dashed border-slate-300 rounded-xl p-3 bg-slate-50/70 hover:bg-slate-50 transition">
-          <div class="flex items-center justify-between">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-              <i class="fa-solid fa-images text-teal-600 text-base"></i>
+              <i class="fa-solid fa-receipt text-teal-600 text-base"></i>
               إرفاق فاتورة (اختياري)
             </span>
-            <label class="bg-teal-600 hover:bg-teal-700 active:scale-95 text-white text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer transition flex items-center gap-1.5 shadow-sm">
-              <i class="fa-solid fa-camera"></i>
-              <span>تصوير أو اختيار صورة</span>
-              <input type="file" id="invoiceImage" accept="image/*" onchange="previewInvoice(event)" class="hidden">
-            </label>
+            <div class="flex items-center gap-2">
+              <!-- زر تصوير الكاميرا المباشر -->
+              <label class="flex-1 sm:flex-none bg-teal-600 hover:bg-teal-700 active:scale-95 text-white text-xs font-bold px-3 py-2 rounded-lg cursor-pointer transition flex items-center justify-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-camera"></i>
+                <span>تصوير بالكاميرا</span>
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="previewInvoice(event)" class="hidden">
+              </label>
+
+              <!-- زر اختيار صورة من المعرض والملفات -->
+              <label class="flex-1 sm:flex-none bg-slate-700 hover:bg-slate-800 active:scale-95 text-white text-xs font-bold px-3 py-2 rounded-lg cursor-pointer transition flex items-center justify-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-image"></i>
+                <span>من المعرض</span>
+                <input type="file" id="galleryInput" accept="image/*" onchange="previewInvoice(event)" class="hidden">
+              </label>
+            </div>
           </div>
 
           <div id="imagePreviewBox" class="hidden mt-3 pt-3 border-t border-slate-200 flex items-center justify-between">
             <div class="flex items-center gap-2">
               <img id="previewImg" src="" class="w-12 h-12 rounded-lg object-cover border border-slate-300 shadow-sm">
               <div>
-                <span class="text-xs font-bold text-slate-700 block" id="imgName">invoice.jpg</span>
+                <span class="text-xs font-bold text-slate-700 block truncate max-w-[180px]" id="imgName">invoice.jpg</span>
                 <span class="text-[10px] text-emerald-600 font-semibold"><i class="fa-solid fa-check-circle"></i> تم إرفاق الصورة وجاهزة للحفظ والشيت</span>
               </div>
             </div>
@@ -318,8 +328,8 @@
       const file = e.target.files[0];
       if (!file) return;
 
-      attachedImageName = file.name;
-      document.getElementById('imgName').innerText = file.name;
+      attachedImageName = file.name || "invoice.jpg";
+      document.getElementById('imgName').innerText = attachedImageName;
 
       const reader = new FileReader();
       reader.onload = function(evt) {
@@ -333,7 +343,8 @@
     function removeImage() {
       attachedImageBase64 = null;
       attachedImageName = "";
-      document.getElementById('invoiceImage').value = "";
+      document.getElementById('cameraInput').value = "";
+      document.getElementById('galleryInput').value = "";
       document.getElementById('imagePreviewBox').classList.add('hidden');
     }
 
